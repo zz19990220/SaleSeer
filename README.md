@@ -1,71 +1,103 @@
-# SaleSeer
 
-**SaleSeer** is a virtual sales assistant powered by a Large Language Model (LLM). It helps online shoppers quickly find the perfect products by understanding their needs, preferences, and feedback in a conversational manner.
+## 1. Key Decisions
 
-## Table of Contents
-- [Project Objectives](#project-objectives)
-- [Key Features](#key-features)
-- [Architecture Overview](#architecture-overview)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Development Roadmap](#development-roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+### **AI-Driven Filter Integration**
+- We will integrate an AI engine into the existing filtering component on the retailer’s website.
+- The AI feature will observe:
+  - Filter selections
+  - Products viewed or clicked
+  - Time spent on product pages
 
-## Project Objectives
-1. **Accessing a Store’s Inventory**  
-   Integrate in real time with a shop’s product catalog.
-2. **Gathering Customer Preferences and Feedback**  
-   Ask customers about preferences, needs, or past purchases for more relevant recommendations.
-3. **Refining Recommendations**  
-   Use iterative Q&A to update suggestions based on ongoing customer feedback.
-4. **Enhancing Customer Engagement**  
-   Provide a personalized, conversational shopping experience.
+### **Chat vs. Button-Style Interaction**
+Two options for user interaction will be offered:
+- **a.** Fewer than 10 phrase-based button choices (e.g., “I need something that fits summer colors in X city”)
+- **b.** A chat-based format where customers can type in their preferences and receive updated product filters in real-time
 
-## Key Features
-1. **LLM-Based Recommendation Engine**  
-   Conversational AI (powered by an LLM) to understand and respond to queries regarding product categories, specifications, and customer preferences.
-2. **Inventory Data Integration**  
-   A module or script that fetches the latest store inventory from a database, spreadsheet, or API.
-3. **User Chat Interface**  
-   A web-based or command-line interface for real-time interaction with SaleSeer.
-4. **Feedback Loop and Refinement**  
-   Captures user feedback and adjusts subsequent product recommendations accordingly.
-5. **Documentation and Developer References**  
-   Detailed documentation with setup instructions, usage examples, and developer best practices.
+### **User Interface Simplicity**
+- The system must remain simple and intuitive.
+- Users should be able to get personalized suggestions quickly without feeling overwhelmed.
 
-## Architecture Overview
-+-----------------------+ | Front-End | <-- Web or CLI Chat Interface +----------+------------+ | v +-----------------------+ | LLM Recommendation | <-- Processes user inputs and inventory data | Engine | to provide recommendations +----------+------------+ | v +-----------------------+ | Inventory Integration | <-- Gathers product data from DB/API | Module | +-----------------------+ | v +-----------------------+ | Database | +-----------------------+
+---
 
-- **Front-End (UI/CLI):** Handles user interactions.
-- **LLM Recommendation Engine:** Uses an LLM to generate conversation flows and recommendations.
-- **Inventory Integration Module:** Fetches updated product data.
-- **Database/Backend:** Stores product and customer information (this may be optional if using external APIs or spreadsheets).
+## 2. Action Items
 
-## Installation
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/shareefjasim/SaleSeer.git
-   cd SaleSeer
-# Development Roadmap
+### **AI Engine Prototyping**  
+**Assigned to:** [Developer / AI Specialist]  
+**Task:** Design algorithm to observe filter usage and browsing behavior for generating suggestions.
 
-## Phase 1: Setup and Basic Functionality
-- **Create project structure.**
-- **Implement basic inventory parsing.**
-- **Integrate LLM with simple Q&A flow.**
+### **UI/UX Design Draft**  
+**Assigned to:** [Designer / Front-End Developer]  
+**Task:** Create wireframes for both button-based and chat-based interactions.
 
-## Phase 2: Interactive Recommendations
-- **Develop conversation flow capturing user preferences (e.g., budget, style).**
-- **Implement real-time refinement based on user feedback.**
+### **Integration Plan**  
+**Assigned to:** [Project Manager]  
+**Task:** Outline steps for technical integration including data flow, APIs, and backend adjustments.
 
-## Phase 3: UI/UX Enhancements
-- **Build a user-friendly web or chat interface.**
-- **Ensure usability and accessibility.**
+### **Security & Privacy Review**  
+**Assigned to:** [Security Team]  
+**Task:** Assess user data handling (clicks, view times) for privacy compliance.
 
-## Phase 4: Testing and Evaluation
-- **Perform unit tests for major components.**
-- **Gather user feedback to optimize recommendations.**
+---
 
-## Phase 5: Launch and Maintenance
-- **Deploy on a production environment.**
-- **Schedule regular updates for the LLM and inventory data.**
+## 3. Requested Features & Changes
+
+- **Dynamic Phrasing:**  
+  AI should generate context-aware button or chat suggestions (e.g., “Looking for summer-friendly outfits in warm climates”).
+
+- **Adaptive Layout:**  
+  Filter options should dynamically rearrange based on AI suggestions for a seamless UX.
+
+- **Personalized Recommendations:**  
+  Top product recommendations should be shown first based on user behavior and input.
+
+- **Multi-Language Support (Future):**  
+  Consider handling multiple languages for chat-based interaction.
+
+---
+
+## 4. Clarifying Questions
+
+- **Scope of Data Collection:**  
+  Are we collecting only clicks and view durations, or also transaction history, search queries, etc.?
+
+- **Button Phrasing Flexibility:**  
+  Will the AI generate phrases in real-time, or will there be a fixed set of predefined options?
+
+- **Chat AI Complexity:**  
+  Should the chat mimic near-human conversations or just offer simple product-related Q&A?
+
+- **Integration Timeline:**  
+  Is there a deadline for beta vs. full launch?
+
+---
+
+## 5. Expected Timeline
+
+| **Milestone**              | **Deadline**        | **Notes**                                      |
+|---------------------------|---------------------|------------------------------------------------|
+| AI Engine Prototype        | 2–3 weeks from now   | Basic data ingestion & preliminary algorithm   |
+| Initial UI/UX Wireframes   | 2 weeks from now     | Button layout & chat mockups                   |
+| Security & Privacy Review  | Concurrent (2 weeks) | Data handling and compliance checks            |
+| Beta Testing               | ~1 month from now    | Integrate prototype & collect user feedback    |
+| Final Launch               | ~2 months from now   | Incorporate feedback & go-live                 |
+
+---
+
+## 6. Challenges & Potential Issues
+
+### **Data Accuracy and Privacy**
+- Ensuring personalized recommendation data is both accurate and privacy-compliant.
+
+### **AI Training & Maintenance**
+- Building a model that adapts to seasonal, product, and user behavior changes.
+
+### **User Adoption & Complexity**
+- Keeping the experience simple while offering powerful AI-driven personalization.
+
+### **Integration Overhead**
+- Coordinating with AI, backend, frontend, and security teams may cause delays.
+
+### **Scaling**
+- Ensuring the AI engine scales with product expansion and increasing user volume.
+
+---
