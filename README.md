@@ -22,19 +22,15 @@ Two options for user interaction will be offered:
 ## 2. Action Items
 
 ### **AI Engine Prototyping**  
-**Assigned to:** [Developer / AI Specialist]  
 **Task:** Design algorithm to observe filter usage and browsing behavior for generating suggestions.
 
 ### **UI/UX Design Draft**  
-**Assigned to:** [Designer / Front-End Developer]  
 **Task:** Create wireframes for both button-based and chat-based interactions.
 
 ### **Integration Plan**  
-**Assigned to:** [Project Manager]  
 **Task:** Outline steps for technical integration including data flow, APIs, and backend adjustments.
 
 ### **Security & Privacy Review**  
-**Assigned to:** [Security Team]  
 **Task:** Assess user data handling (clicks, view times) for privacy compliance.
 
 ---
