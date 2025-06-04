@@ -14,16 +14,23 @@ try:
     # Try to import and setup OpenAI with OpenRouter
     import openai  # type: ignore
     
-    # Configure OpenRouter API
-    openai.api_key = "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"
-    openai.api_base = "https://openrouter.ai/api/v1"
-    
-    if hasattr(openai, 'OpenAI'):
-        # New OpenAI client
-        openai_client = openai.OpenAI(api_key=openai.api_key, base_url=openai.api_base)  # type: ignore
+    # Get API key from environment variable
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        st.error("⚠️ OPENROUTER_API_KEY environment variable not set. Please set it to use AI features.")
+        OPENAI_KEY_AVAILABLE = False
+        openai_client = None
     else:
-        # Legacy OpenAI
-        openai_client = openai
+        # Configure OpenRouter API
+        openai.api_key = api_key
+        openai.api_base = "https://openrouter.ai/api/v1"
+        
+        if hasattr(openai, 'OpenAI'):
+            # New OpenAI client
+            openai_client = openai.OpenAI(api_key=openai.api_key, base_url=openai.api_base)  # type: ignore
+        else:
+            # Legacy OpenAI
+            openai_client = openai
 except ImportError:
     # OpenAI not available, continue without it
     OPENAI_KEY_AVAILABLE = False

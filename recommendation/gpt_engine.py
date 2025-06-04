@@ -1,12 +1,20 @@
 # recommendation/gpt_engine.py
 
 import os
-from typing import List, Dict, Tuple
+from dotenv import load_dotenv
+load_dotenv()
+
 import openai  # type: ignore
 import logging
+from typing import List, Dict, Tuple
+
+# Get API key from environment variable
+api_key = os.getenv("OPENROUTER_API_KEY")
+if not api_key:
+    raise ValueError("OPENROUTER_API_KEY environment variable not set. Please set it to use GPT features.")
 
 # Configure OpenRouter API
-openai.api_key = "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"
+openai.api_key = api_key
 openai.api_base = "https://openrouter.ai/api/v1"
 
 # Setup logging
@@ -16,11 +24,11 @@ logger = logging.getLogger(__name__)
 def generate_recommendation(query: str, top_k_products: List[Dict]) -> Tuple[str, str]:
     """
     Use GPT to wrap TF-IDF filtered Top-K products into natural language recommendation.
-    
+
     Parameters:
     - query: User's original input, e.g. "shoes under 500"
     - top_k_products: Product list [{"name": ..., "price": ...}, ...]
-    
+
     Returns:
     - Tuple of (GPT generated recommendation string, model_used)
     """
@@ -43,7 +51,7 @@ def generate_recommendation(query: str, top_k_products: List[Dict]) -> Tuple[str
 
     # 4) Try GPT-4o-mini first, fallback to GPT-3.5-turbo
     models_to_try = ["gpt-4o-mini", "gpt-3.5-turbo"]
-    
+
     for i, model in enumerate(models_to_try):
         try:
             logger.info(f"Attempting to use {model} for recommendation generation")
@@ -60,20 +68,20 @@ def generate_recommendation(query: str, top_k_products: List[Dict]) -> Tuple[str
             recommendation = resp.choices[0].message["content"].strip()  # type: ignore
             logger.info(f"Successfully generated recommendation using {model}")
             return recommendation, model
-            
+
         except openai.error.OpenAIError as e:  # type: ignore
             # Check for specific error types that warrant fallback
             error_code = getattr(e, 'code', None)
             if error_code in ["insufficient_quota", "invalid_request_error", "rate_limit_exceeded"] or \
                "quota" in str(e).lower() or "rate limit" in str(e).lower():
-                
+
                 logger.warning(f"OpenAI quota/rate limit error with {model}: {e}")
-                
+
                 # If this was the last model to try, return error
                 if i == len(models_to_try) - 1:
                     logger.error(f"All models exhausted. Final error: {e}")
                     return f"*GPT recommendation failed: {e}*", "error"
-                
+
                 # Otherwise, continue to next model (fallback)
                 logger.info(f"Falling back from {model} to {models_to_try[i+1]}")
                 continue
@@ -81,12 +89,12 @@ def generate_recommendation(query: str, top_k_products: List[Dict]) -> Tuple[str
                 # For other errors, don't retry
                 logger.error(f"Non-recoverable OpenAI error with {model}: {e}")
                 return f"*GPT recommendation failed: {e}*", "error"
-                
+
         except Exception as e:
             # For non-OpenAI errors, don't retry
             logger.error(f"Unexpected error with {model}: {e}")
             return f"*GPT recommendation failed: {e}*", "error"
-    
+
     # Should not reach here, but just in case
     logger.error("All models exhausted without clear fallback path")
     return "*GPT recommendation failed: All models exhausted*", "error"
