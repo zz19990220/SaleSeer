@@ -1,3 +1,5 @@
 streamlit
+pandas
+scikit-learn
 openai==0.28.0
 tabulate>=0.8

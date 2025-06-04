@@ -1,7 +1,36 @@
-name,category,price,color,link
-Nike Air Zoom Pegasus 40,Shoes,130,Blue,https://example.com/pegasus40
-Adidas Ultraboost 22,Shoes,190,Black,https://example.com/ultra22
-Fila Runner,Shoes,75,Blue,https://example.com/fila
-Budget Blue Trainer,Shoes,45,Blue,https://example.com/budget
-Apple AirPods Pro 2,Electronics,249,White,https://example.com/airpods
-Logitech MX Master 3S,Electronics,99,Black,https://example.com/mx3s
+name,category,price,color,description,link
+Apple iPhone 15 Pro,Electronics,999,Black,"Latest flagship smartphone with titanium design, A17 Pro chip, and advanced triple-camera system with 5x optical zoom",https://saleseer.com/product/1
+"Samsung 55"" QLED 4K TV",Electronics,799,White,"Quantum Dot technology smart TV with HDR10+ support, Alexa built-in, and ultra-slim design for immersive viewing",https://saleseer.com/product/2
+Sony WH-1000XM5 Headphones,Electronics,349,Blue,Industry-leading noise canceling wireless headphones with 30-hour battery life and premium sound quality,https://saleseer.com/product/3
+MacBook Air M2,Electronics,1199,Red,"Ultraportable laptop with Apple M2 chip, 13.6-inch Liquid Retina display, and all-day battery life",https://saleseer.com/product/4
+Gaming Mechanical Keyboard RGB,Electronics,129,Green,"Tactile blue switches with customizable RGB backlighting, programmable keys, and durable aluminum frame",https://saleseer.com/product/5
+Levi's 501 Original Jeans,Clothing,89,Silver,"Classic straight-fit denim jeans with button fly, made from premium cotton for comfort and durability",https://saleseer.com/product/6
+Nike Air Force 1 Sneakers,Clothing,110,Gray,"Iconic basketball-inspired sneakers with leather upper, Air-Sole unit, and classic white colorway",https://saleseer.com/product/7
+Patagonia Fleece Jacket,Clothing,149,Navy,"Sustainable recycled polyester fleece jacket with full-zip design, perfect for outdoor adventures",https://saleseer.com/product/8
+Adidas Ultraboost 23 Running Shoes,Clothing,190,Brown,"High-performance running shoes with responsive Boost midsole, Primeknit upper, and Continental rubber outsole",https://saleseer.com/product/9
+Calvin Klein Cotton T-Shirt,Clothing,35,Pink,"Premium cotton crew neck t-shirt with classic fit and signature logo, available in multiple colors",https://saleseer.com/product/10
+Dyson V15 Detect Vacuum,Home,749,Black,"Cordless stick vacuum with laser dust detection, intelligent suction adjustment, and up to 60 minutes runtime",https://saleseer.com/product/11
+Instant Pot Duo 7-in-1,Home,99,White,"Multi-functional pressure cooker that pressure cooks, slow cooks, rice cooker, steamer, and more",https://saleseer.com/product/12
+KitchenAid Stand Mixer,Home,379,Blue,"Professional-grade 5-quart stand mixer with 10 speeds, tilt-head design, and included mixing attachments",https://saleseer.com/product/13
+Philips Hue Smart Bulb Starter Kit,Home,199,Red,"Smart LED lighting system with 16 million colors, voice control compatibility, and smartphone app control",https://saleseer.com/product/14
+Weber Genesis Gas Grill,Home,899,Green,Premium 3-burner gas grill with porcelain-enameled cast iron grates and built-in thermometer,https://saleseer.com/product/15
+Yeti Rambler Tumbler 20oz,Sports,35,Silver,"Double-wall vacuum insulated tumbler that keeps drinks cold for hours, dishwasher safe with No Sweat design",https://saleseer.com/product/16
+REI Co-op Hiking Backpack,Sports,169,Gray,"Durable 40L hiking backpack with adjustable suspension, multiple pockets, and rain cover included",https://saleseer.com/product/17
+TRX Suspension Trainer,Sports,195,Navy,"Complete bodyweight training system for strength, cardio, and flexibility workouts anywhere",https://saleseer.com/product/18
+Hydro Flask Water Bottle 32oz,Sports,44,Brown,Insulated stainless steel water bottle that keeps drinks cold for 24 hours or hot for 12 hours,https://saleseer.com/product/19
+Coleman 4-Person Camping Tent,Sports,129,Pink,"Weatherproof dome tent with easy setup, spacious interior, and included rainfly for all-season camping",https://saleseer.com/product/20
+Kindle Paperwhite E-reader,Books,139,Black,"Waterproof e-reader with 6.8-inch glare-free display, adjustable warm light, and weeks of battery life",https://saleseer.com/product/21
+The Psychology of Money Book,Books,16,White,Bestselling book about the strange ways people think about money and teaches how to make better financial decisions,https://saleseer.com/product/22
+Moleskine Classic Notebook,Books,22,Blue,"Hard cover notebook with dotted pages, elastic closure, and expandable inner pocket for notes and ideas",https://saleseer.com/product/23
+Glossier Cloud Paint Blush,Beauty,22,Red,"Seamless gel-cream blush that blends effortlessly for a natural, dewy finish in buildable shades",https://saleseer.com/product/24
+Cetaphil Daily Facial Cleanser,Beauty,13,Green,"Gentle, soap-free cleanser suitable for all skin types, removes makeup and impurities without over-drying",https://saleseer.com/product/25
+Olaplex Hair Perfector Treatment,Beauty,28,Silver,Professional-quality at-home hair treatment that repairs and strengthens damaged hair bonds,https://saleseer.com/product/26
+LEGO Creator Expert Car Set,Toys,199,Gray,"Detailed building set featuring authentic car replica with working steering, opening doors, and display stand",https://saleseer.com/product/27
+Nintendo Switch OLED Console,Toys,349,Navy,"Hybrid gaming console with vibrant OLED screen, enhanced audio, and versatile play modes for home or portable gaming",https://saleseer.com/product/28
+Monopoly Classic Board Game,Toys,19,Brown,"Timeless family board game of buying, selling, and trading properties with classic gameplay and components",https://saleseer.com/product/29
+Blue Bottle Coffee Subscription,Food,65,Pink,"Monthly subscription of freshly roasted, single-origin coffee beans delivered to your door with tasting notes",https://saleseer.com/product/30
+Organic Green Tea Variety Pack,Food,24,Black,"Collection of premium organic green teas including sencha, jasmine, and matcha for diverse flavor experiences",https://saleseer.com/product/31
+Garmin DashCam 67W,Automotive,199,White,"Wide-angle dash camera with 180-degree field of view, voice control, and automatic incident detection",https://saleseer.com/product/32
+Chemical Guys Car Wash Kit,Automotive,89,Blue,"Complete car detailing kit with premium wash soap, microfiber towels, and protective wax for professional results",https://saleseer.com/product/33
+Fitbit Charge 6 Fitness Tracker,Health,159,Red,"Advanced fitness tracker with heart rate monitoring, built-in GPS, sleep tracking, and 7-day battery life",https://saleseer.com/product/34
+Theragun Elite Massage Gun,Health,399,Green,Professional-grade percussive therapy device for muscle recovery with smartphone app and multiple attachments,https://saleseer.com/product/35
