@@ -1,10 +1,23 @@
+# streamlit_app.py
+
 import os
 import json
 import re
 from textwrap import dedent
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import streamlit as st
 import pandas as pd
+
+# ———— 必须将 set_page_config 放在所有其他 Streamlit 命令之前 ————
+st.set_page_config(
+    page_title="SaleSeer",
+    page_icon="🛒",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ———— Optional: LLM Support ————
 OPENAI_KEY_AVAILABLE = True
@@ -13,7 +26,7 @@ openai_client = None
 try:
     # Try to import and setup OpenAI with OpenRouter
     import openai  # type: ignore
-    
+
     # Get API key from environment variable
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
@@ -24,7 +37,7 @@ try:
         # Configure OpenRouter API
         openai.api_key = api_key
         openai.api_base = "https://openrouter.ai/api/v1"
-        
+
         if hasattr(openai, 'OpenAI'):
             # New OpenAI client
             openai_client = openai.OpenAI(api_key=openai.api_key, base_url=openai.api_base)  # type: ignore
@@ -42,14 +55,6 @@ except Exception:
 from inv_parser.inventory_parser import load_sample_inventory, load_csv
 from recommendation.engine import get_recommendations
 from recommendation.gpt_engine import generate_recommendation
-
-# ———— Page configuration —————
-st.set_page_config(
-    page_title="SaleSeer", 
-    page_icon="🛒",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # ———— Custom CSS styles —————
 st.markdown("""
@@ -388,7 +393,7 @@ def apply_price_filter(inv: pd.DataFrame, prefs: dict) -> pd.DataFrame:
     Apply price range filtering to inventory DataFrame
     """
     df = inv.copy()
-    
+
     if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None and "price" in df.columns:
         # Range filtering
         df = df[(df["price"] >= prefs["budget_min"]) & (df["price"] <= prefs["budget_max"])]
@@ -398,7 +403,7 @@ def apply_price_filter(inv: pd.DataFrame, prefs: dict) -> pd.DataFrame:
             df = df[df["price"] <= prefs["budget"]]
         else:  # "min"
             df = df[df["price"] >= prefs["budget"]]
-    
+
     return df
 
 
@@ -409,23 +414,23 @@ def llm_recommend(inv: pd.DataFrame, query: str, prefs: dict) -> str:
     """
     if not OPENAI_KEY_AVAILABLE or openai_client is None:
         return "*OpenAI service unavailable, please check configuration or use other recommendation modes*"
-    
+
     # Apply price range filter first
     filtered_inv = apply_price_filter(inv, prefs)
-    
+
     if filtered_inv.empty:
         if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
             return f"*No products found in price range ${prefs['budget_min']} to ${prefs['budget_max']}*"
         else:
             return "*No products found matching price criteria*"
-    
+
     sample = filtered_inv.head(20).to_dict(orient="records")
-    
+
     # Enhanced prompt with price range information
     prompt_prefix = f"User query: {query}"
     if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
         prompt_prefix += f"\nPrice range: ${prefs['budget_min']} to ${prefs['budget_max']}"
-    
+
     messages = [
         {
             "role": "system",
@@ -436,7 +441,7 @@ def llm_recommend(inv: pd.DataFrame, query: str, prefs: dict) -> str:
             "content": f"{prompt_prefix}\n\nInventory JSON: {json.dumps(sample, ensure_ascii=False)}"
         },
     ]
-    
+
     try:
         # Try different OpenAI API methods
         if hasattr(openai_client, 'chat') and hasattr(openai_client.chat, 'completions'):  # type: ignore
@@ -453,7 +458,7 @@ def llm_recommend(inv: pd.DataFrame, query: str, prefs: dict) -> str:
                 messages=messages,
                 temperature=0.7
             )
-        
+
         return response.choices[0].message.content.strip()  # type: ignore
     except Exception as e:
         return f"*LLM call failed: {str(e)}*"
@@ -466,7 +471,7 @@ def execute_recommendation(query: str, mode: str, inventory: pd.DataFrame) -> No
     """
     # Parse preferences
     prefs = parse_user_query(query)
-    
+
     # Execute based on mode
     if mode == "Rule-based":
         filtered = rule_based_recommend(inventory, prefs, top_k=3)
@@ -491,7 +496,7 @@ def execute_recommendation(query: str, mode: str, inventory: pd.DataFrame) -> No
                     f"{i}. **{row['name']} – ${row['price']}**  \n"
                     f"   Reason: {', '.join(reason) or 'Top pick'}"
                 )
-            
+
             st.markdown('<div class="result-card">', unsafe_allow_html=True)
             st.markdown('<div class="result-header">🔍 Rule-based Top picks</div>', unsafe_allow_html=True)
             reply_md = "\n\n".join(lines)
@@ -503,24 +508,24 @@ def execute_recommendation(query: str, mode: str, inventory: pd.DataFrame) -> No
     elif mode == "TF-IDF + GPT":
         # Pre-filter inventory by price range before TF-IDF
         filtered_inventory = apply_price_filter(inventory, prefs)
-        
+
         if filtered_inventory.empty:
             if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
                 st.warning(f"⚠️ No products found in price range ${prefs['budget_min']} to ${prefs['budget_max']}. Try adjusting your budget range.")
             else:
                 st.warning("⚠️ No products found matching price criteria.")
             return
-        
+
         # Now run TF-IDF on the filtered inventory
         tfidf_df = get_recommendations(query, filtered_inventory, k=3)
-        
+
         if not tfidf_df.empty:
             top_k_list = tfidf_df[["name", "price"]].to_dict(orient="records")
             gpt_reply, model_used = generate_recommendation(query, top_k_list)
 
             # Use column layout to display TF-IDF results and GPT recommendations separately
             col1, col2 = st.columns([1, 1])
-            
+
             with col1:
                 st.markdown('<div class="result-card">', unsafe_allow_html=True)
                 st.markdown('<div class="result-header">🔢 TF-IDF Top 3 Matches</div>', unsafe_allow_html=True)
@@ -533,7 +538,7 @@ def execute_recommendation(query: str, mode: str, inventory: pd.DataFrame) -> No
 
             with col2:
                 st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                
+
                 # Create header with fallback warning if needed
                 if model_used == "gpt-3.5-turbo":
                     st.markdown('<div class="result-header">🤖 GPT Smart Recommendation ⚠️ Using GPT-3.5 due to quota limits</div>', unsafe_allow_html=True)
@@ -543,7 +548,7 @@ def execute_recommendation(query: str, mode: str, inventory: pd.DataFrame) -> No
                     st.markdown('<div class="result-header">🤖 GPT Smart Recommendation ❌ Error</div>', unsafe_allow_html=True)
                 else:
                     st.markdown('<div class="result-header">🤖 GPT Smart Recommendation</div>', unsafe_allow_html=True)
-                
+
                 st.markdown(gpt_reply)
                 st.markdown('</div>', unsafe_allow_html=True)
         else:
@@ -558,7 +563,6 @@ def execute_recommendation(query: str, mode: str, inventory: pd.DataFrame) -> No
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.error("⚠️ OpenAI Key unavailable, cannot call large language model.")
-
 
 # ———— 7. Main conversation logic & interface —————
 st.markdown('<h2 class="chat-header">💬 Let\'s Chat!</h2>', unsafe_allow_html=True)
