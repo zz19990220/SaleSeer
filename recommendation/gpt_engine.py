@@ -19,9 +19,7 @@ def generate_recommendation(query: str, top_k_list: list) -> tuple:
     This function tries to call the OpenRouter Chat Completion endpoint. If it fails (quota, network, missing key),
     it falls back to returning a static message and model_used="error".
     """
-    # Check that we have the OpenAI client available
-    if openai is None or not hasattr(openai, "api_key") or openai.api_key is None:
-        return ("*OpenAI service unavailable. Cannot generate GPT recommendation.*", "error")
+    # Always proceed to try the wrapper - it has its own fallback logic
 
     # Build a very simple prompt: "Here are 3 items. Write a short, friendly recommendation."
     # We include the prices and names in JSON.

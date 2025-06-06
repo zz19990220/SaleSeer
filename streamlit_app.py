@@ -398,6 +398,13 @@ def parse_user_query(query: str, inventory: pd.DataFrame) -> dict:
     for kw in predefined_kw:
         if kw in lower_q:
             prefs["keywords"].append(kw)
+    
+    # Special footwear keyword expansion - if "shoe" or "shoes" is mentioned, also include related terms
+    if any(term in lower_q for term in ["shoe", "shoes", "footwear"]):
+        footwear_terms = ["shoe", "shoes", "sneakers", "sneaker", "footwear", "boots", "sandals"]
+        for term in footwear_terms:
+            if term not in prefs["keywords"]:
+                prefs["keywords"].append(term)
 
     return prefs
 
