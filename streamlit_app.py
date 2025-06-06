@@ -290,32 +290,84 @@ def parse_user_query(query: str, inventory: pd.DataFrame) -> dict:
 
     lower_q = query.lower()
 
-    # 1) Check for a numeric range "110 to 120" or "110-120"
-    range_match = re.search(r"\$?(\d{1,7})\s*(?:to|-|~)\s*\$?(\d{1,7})", lower_q)
-    if range_match:
-        a = int(range_match.group(1))
-        b = int(range_match.group(2))
-        if a <= b:
-            prefs["budget_min"], prefs["budget_max"] = a, b
-        else:
-            prefs["budget_min"], prefs["budget_max"] = b, a
-        return prefs  # no single budget needed
-
-    # 2) Single bound budget, e.g. ">$100" or "under 200"
-    m = re.search(r"\$?(\d{1,7})", lower_q)
-    if m:
-        prefs["budget"] = int(m.group(1))
-    if re.search(r"\b(above|over|greater|>=)\b", lower_q):
-        prefs["budget_type"] = "min"
-    elif re.search(r"\b(below|under|less|<=)\b", lower_q):
-        prefs["budget_type"] = "max"
-
-    # 3) Dynamic category matching from inventory["category"] (case-insensitive)
-    unique_cats = inventory["category"].dropna().astype(str).unique().tolist()
-    for cat in unique_cats:
-        if cat.lower() in lower_q:
-            prefs["category"] = cat
+    # 1) Check for range patterns - improved to handle "between X and Y"
+    range_patterns = [
+        r"between\s+\$?(\d{1,7})\s+and\s+\$?(\d{1,7})",  # "between 50 and 150"
+        r"\$?(\d{1,7})\s*(?:to|-|~)\s*\$?(\d{1,7})",     # "50 to 150" or "50-150"
+        r"from\s+\$?(\d{1,7})\s+to\s+\$?(\d{1,7})"      # "from 50 to 150"
+    ]
+    
+    for pattern in range_patterns:
+        range_match = re.search(pattern, lower_q)
+        if range_match:
+            a = int(range_match.group(1))
+            b = int(range_match.group(2))
+            if a <= b:
+                prefs["budget_min"], prefs["budget_max"] = a, b
+            else:
+                prefs["budget_min"], prefs["budget_max"] = b, a
+            # Continue parsing other filters (don't return early)
             break
+
+    # 2) Single bound budget only if no range was found
+    if prefs["budget_min"] is None and prefs["budget_max"] is None:
+        m = re.search(r"\$?(\d{1,7})", lower_q)
+        if m:
+            prefs["budget"] = int(m.group(1))
+        if re.search(r"\b(above|over|greater|>=)\b", lower_q):
+            prefs["budget_type"] = "min"
+        elif re.search(r"\b(below|under|less|<=)\b", lower_q):
+            prefs["budget_type"] = "max"
+
+    # 3) Enhanced category matching with synonyms
+    category_synonyms = {
+        "clothes": "Clothing",
+        "clothing": "Clothing", 
+        "apparel": "Clothing",
+        "garments": "Clothing",
+        "shoes": "Clothing",  # Shoes are in Clothing category
+        "footwear": "Clothing",
+        "sneakers": "Clothing",
+        "electronics": "Electronics",
+        "tech": "Electronics",
+        "gadgets": "Electronics",
+        "devices": "Electronics",
+        "books": "Books",
+        "reading": "Books",
+        "literature": "Books",
+        "home": "Home",
+        "household": "Home",
+        "furniture": "Home",
+        "beauty": "Beauty",
+        "cosmetics": "Beauty",
+        "makeup": "Beauty",
+        "automotive": "Automotive",
+        "car": "Automotive",
+        "vehicle": "Automotive",
+        "sports": "Sports",
+        "fitness": "Sports",
+        "exercise": "Sports",
+        "toys": "Toys",
+        "games": "Toys",
+        "food": "Food",
+        "grocery": "Food",
+        "health": "Health",
+        "medical": "Health"
+    }
+    
+    # First try synonym matching
+    for synonym, category in category_synonyms.items():
+        if synonym in lower_q:
+            prefs["category"] = category
+            break
+    
+    # If no synonym match, try dynamic matching from inventory
+    if not prefs.get("category"):
+        unique_cats = inventory["category"].dropna().astype(str).unique().tolist()
+        for cat in unique_cats:
+            if cat.lower() in lower_q:
+                prefs["category"] = cat
+                break
 
     # 4) Dynamic color matching from inventory["color"]
     if "color" in inventory.columns:
@@ -325,11 +377,23 @@ def parse_user_query(query: str, inventory: pd.DataFrame) -> dict:
                 prefs["color"] = col
                 break
 
-    # 5) Predefined keyword list
+    # 5) Enhanced keyword list
     predefined_kw = [
-        "red", "blue", "green", "dress", "shoe", "tech", "bag",
-        "phone", "jeans", "sneakers", "headphones", "watch", "keyboard",
-        "charger", "camera", "laptop", "fitbit", "wireless", "gaming", "smart", "budget"
+        "red", "blue", "green", "black", "white", "gray", "brown", "pink", "silver",
+        "dress", "shirt", "shirts", "pants", "jeans", "jacket", "coat",
+        "shoe", "shoes", "sneakers", "boots", "sandals", "heels",
+        "tech", "bag", "bags", "backpack", "purse", "wallet",
+        "phone", "smartphone", "iphone", "android",
+        "headphones", "earbuds", "speakers", "audio",
+        "watch", "smartwatch", "fitness", "tracker",
+        "keyboard", "mouse", "gaming", "mechanical",
+        "charger", "cable", "wireless", "bluetooth",
+        "camera", "photography", "lens",
+        "laptop", "computer", "macbook", "pc",
+        "tv", "television", "monitor", "screen",
+        "smart", "home", "automation",
+        "running", "sports", "workout", "exercise", "fitness",
+        "book", "notebook", "journal", "diary"
     ]
     for kw in predefined_kw:
         if kw in lower_q:
