@@ -1,17 +1,50 @@
 # streamlit_app.py
-
 import os
 import json
 import re
-from textwrap import dedent
-
-from dotenv import load_dotenv
-load_dotenv()
 
 import streamlit as st
 import pandas as pd
 
-# ———— 必须将 set_page_config 放在所有其他 Streamlit 命令之前 ————
+# —— Optional: LLM (OpenRouter) Support —— 
+OPENAI_KEY_AVAILABLE = True  # Enable OpenAI functionality
+openai_client = None
+
+try:
+    import openai  # type: ignore
+
+    # 1) You can either load from an environment variable or hard-code for testing:
+    #    If you want to load from a `.env` file, uncomment the two lines below and store your key in `.env`.
+    # from dotenv import load_dotenv
+    # load_dotenv()
+    # openai_key = os.getenv("OPENAI_API_KEY")
+
+    # In this code snippet, we'll hard-code your new OpenRouter key:
+    openai_key = "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"
+
+    if openai_key:
+        # Set up OpenAI legacy API configuration for v0.28.0 with OpenRouter
+        openai.api_key = openai_key
+        openai.api_base = "https://openrouter.ai/api/v1"
+        # Set the api_type to None for OpenRouter compatibility
+        openai.api_type = None
+        openai.api_version = None
+        openai_client = openai  # Use legacy client for v0.28.0
+        OPENAI_KEY_AVAILABLE = True
+    else:
+        OPENAI_KEY_AVAILABLE = False
+
+except ImportError:
+    OPENAI_KEY_AVAILABLE = False
+except Exception:
+    OPENAI_KEY_AVAILABLE = False
+
+# —— Local parsing & TF-IDF modules —— 
+from inv_parser.inventory_parser import load_sample_inventory, load_csv
+from recommendation.engine import get_recommendations
+from recommendation.gpt_engine import generate_recommendation
+
+# —— Page configuration —— 
 st.set_page_config(
     page_title="SaleSeer",
     page_icon="🛒",
@@ -19,54 +52,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ———— Optional: LLM Support ————
-OPENAI_KEY_AVAILABLE = True
-openai_client = None
-
-try:
-    # Try to import and setup OpenAI with OpenRouter
-    import openai  # type: ignore
-
-    # Get API key from environment variable
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        st.error("⚠️ OPENROUTER_API_KEY environment variable not set. Please set it to use AI features.")
-        OPENAI_KEY_AVAILABLE = False
-        openai_client = None
-    else:
-        # Configure OpenRouter API
-        openai.api_key = api_key
-        openai.api_base = "https://openrouter.ai/api/v1"
-
-        if hasattr(openai, 'OpenAI'):
-            # New OpenAI client
-            openai_client = openai.OpenAI(api_key=openai.api_key, base_url=openai.api_base)  # type: ignore
-        else:
-            # Legacy OpenAI
-            openai_client = openai
-except ImportError:
-    # OpenAI not available, continue without it
-    OPENAI_KEY_AVAILABLE = False
-except Exception:
-    # Any other OpenAI setup issues
-    OPENAI_KEY_AVAILABLE = False
-
-# ———— Local parsing functions & TF-IDF modules —————
-from inv_parser.inventory_parser import load_sample_inventory, load_csv
-from recommendation.engine import get_recommendations
-from recommendation.gpt_engine import generate_recommendation
-
-# ———— Custom CSS styles —————
+# —— Custom CSS —— 
 st.markdown("""
 <style>
-    /* Main background and global styles */
+    /* Main container padding + background */
     .main .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
         background-color: #f8f9fa;
     }
-    
-    /* Main title styles */
+    /* Title styling */
     .main-title {
         font-size: 3.5rem !important;
         font-weight: 700 !important;
@@ -75,21 +70,13 @@ st.markdown("""
         margin-bottom: 0.5rem;
         letter-spacing: 0.5px;
     }
-    
     .main-subtitle {
         font-size: 1.2rem;
         color: #6b7280;
         text-align: center;
         margin-bottom: 2rem;
     }
-    
-    /* Sidebar styles */
-    .sidebar .sidebar-content {
-        background-color: #ffffff;
-        border-right: 1px solid #e5e7eb;
-    }
-    
-    /* Divider with status text */
+    /* Gradient divider styling */
     .divider {
         height: 3rem;
         background: linear-gradient(90deg, #3b82f6, #8b5cf6);
@@ -99,14 +86,12 @@ st.markdown("""
         align-items: center;
         justify-content: center;
     }
-    
     .divider-text {
         color: white;
         font-weight: 700;
         font-size: 1.1rem;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
-    
     /* Button container */
     .button-container {
         background-color: #f3f4f6;
@@ -115,8 +100,7 @@ st.markdown("""
         border: 1px solid #d1d5db;
         margin: 1rem 0;
     }
-    
-    /* Chat header */
+    /* Chat header styling */
     .chat-header {
         font-size: 2rem !important;
         font-weight: 600 !important;
@@ -124,7 +108,6 @@ st.markdown("""
         margin: 2rem 0 1.5rem 0;
         text-align: center;
     }
-    
     /* Mode selection container */
     .mode-container {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -133,7 +116,6 @@ st.markdown("""
         margin: 1rem 0 2rem 0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-    
     .mode-title {
         color: white !important;
         font-size: 1.3rem !important;
@@ -141,8 +123,7 @@ st.markdown("""
         margin-bottom: 1rem !important;
         text-align: center;
     }
-    
-    /* Last query display */
+    /* Last query container */
     .last-query-container {
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
@@ -150,13 +131,11 @@ st.markdown("""
         padding: 1rem;
         margin: 1rem 0;
     }
-    
     .last-query-text {
         font-size: 0.9rem;
         color: #64748b;
         margin-bottom: 0.5rem;
     }
-    
     .query-content {
         font-size: 1rem;
         color: #1e293b;
@@ -166,8 +145,7 @@ st.markdown("""
         border-radius: 0.25rem;
         border: 1px solid #cbd5e1;
     }
-    
-    /* Result cards */
+    /* Result card styling */
     .result-card {
         background-color: white;
         padding: 1.5rem;
@@ -176,7 +154,6 @@ st.markdown("""
         border: 1px solid #e5e7eb;
         margin: 1rem 0;
     }
-    
     .result-header {
         font-size: 1.2rem;
         font-weight: 600;
@@ -185,20 +162,17 @@ st.markdown("""
         border-bottom: 2px solid #e5e7eb;
         padding-bottom: 0.5rem;
     }
-    
-    /* Input box styling */
+    /* Chat input box styling */
     .stChatInput > div > div > div > div {
         background-color: white;
         border: 2px solid #e5e7eb;
         border-radius: 1rem;
     }
-    
     .stChatInput > div > div > div > div:focus-within {
         border-color: #3b82f6;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
-    
-    /* Success/info message styles */
+    /* Success / Info message boxes */
     .success-box {
         background-color: #d1fae5;
         border: 1px solid #a7f3d0;
@@ -207,7 +181,6 @@ st.markdown("""
         border-radius: 0.5rem;
         margin: 0.5rem 0;
     }
-    
     .info-box {
         background-color: #dbeafe;
         border: 1px solid #93c5fd;
@@ -216,8 +189,7 @@ st.markdown("""
         border-radius: 0.5rem;
         margin: 0.5rem 0;
     }
-    
-    /* Preview caption */
+    /* Preview caption for inventory table */
     .preview-caption {
         font-size: 0.8rem;
         color: #6b7280;
@@ -228,26 +200,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ———— Main title area —————
+# —— Main title area —— 
 st.markdown('<h1 class="main-title">🛒&nbsp;&nbsp;SaleSeer</h1>', unsafe_allow_html=True)
-st.markdown('<p class="main-subtitle">AI Product Recommendation Assistant – Smart Inventory Analysis & Personalized Recommendations</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-subtitle">AI Product Recommendation Assistant – Smart Inventory Analysis & Personalized Suggestions</p>', unsafe_allow_html=True)
 st.markdown('<div class="divider"><span class="divider-text">Ready for your query 🚀</span></div>', unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    st.markdown("📥 **Upload your inventory CSV, or click Load sample inventory to try the Demo**")
+    st.markdown("📥 **Upload your inventory CSV, or click Load sample inventory to try the demo**")
 
-# ———— 0. Sidebar: Inventory cache/loading —————
+# —— 0) Sidebar — Inventory Loading & Preview —— 
 if "inventory" not in st.session_state:
     st.session_state.inventory = None
 
 with st.sidebar:
     st.markdown("### 📊 Inventory Management")
-    
+
     if st.session_state.inventory is not None:
-        inventory_count = len(st.session_state.inventory)
-        st.markdown(f'<div class="success-box">✅ Loaded {inventory_count} products (cached)</div>', unsafe_allow_html=True)
-        
+        count = len(st.session_state.inventory)
+        st.markdown(f'<div class="success-box">✅ Loaded {count} products (cached)</div>', unsafe_allow_html=True)
         st.markdown('<div class="button-container">', unsafe_allow_html=True)
         if st.button("🔄 Reload Sample Inventory", key="reload_btn", use_container_width=True):
             inv = load_sample_inventory()
@@ -259,35 +230,31 @@ with st.sidebar:
         if st.button("📦 Load sample inventory", key="load_sample", use_container_width=True):
             inv = load_sample_inventory()
             st.session_state.inventory = inv
-            inventory_count = len(inv)
-            st.markdown(f'<div class="success-box">✅ Loaded {inventory_count} sample products</div>', unsafe_allow_html=True)
+            count = len(inv)
+            st.markdown(f'<div class="success-box">✅ Loaded {count} sample products</div>', unsafe_allow_html=True)
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown("**Or upload your CSV file:**")
+
+        st.markdown("**Or upload your own inventory CSV:**")
         upload = st.file_uploader("Upload inventory CSV", type="csv", key="csv_upload")
         if upload:
             inv = load_csv(upload)
             st.session_state.inventory = inv
-            inventory_count = len(inv)
-            st.markdown(f'<div class="success-box">✅ Loaded {inventory_count} products</div>', unsafe_allow_html=True)
+            count = len(inv)
+            st.markdown(f'<div class="success-box">✅ Loaded {count} products</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="info-box">ℹ️ Please upload an inventory CSV, or click "Load sample inventory" above to get started.</div>', unsafe_allow_html=True)
-            st.stop()  # Stop when no inventory is available
+            st.stop()
 
     st.markdown('<div class="divider"><span class="divider-text">Inventory Data</span></div>', unsafe_allow_html=True)
-    
-    # Sidebar preview
     st.markdown("### 🔍 Inventory Preview")
-    with st.expander("View data details", expanded=False):
+    with st.expander("View first 10 rows", expanded=False):
         preview_df = st.session_state.inventory.head(10)
         st.dataframe(preview_df, use_container_width=True)
-        total_count = len(st.session_state.inventory)
-        st.markdown(f'<p class="preview-caption">Showing first 10 of {total_count} products</p>', unsafe_allow_html=True)
-    
+        total = len(st.session_state.inventory)
+        st.markdown(f'<p class="preview-caption">Showing first 10 of {total} products</p>', unsafe_allow_html=True)
+
     st.markdown('<div class="divider"><span class="divider-text">Actions</span></div>', unsafe_allow_html=True)
-    
-    # Reset button
     st.markdown('<div class="button-container">', unsafe_allow_html=True)
     if st.button("🔄 Reset Chat & Inventory", key="reset_all", use_container_width=True):
         st.session_state.clear()
@@ -295,85 +262,113 @@ with st.sidebar:
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ———— 1. Initialize session state —————
+# —— 1) Initialize session state for chat & last_query —— 
 if "chat" not in st.session_state:
     st.session_state.chat = []
 if "last_query" not in st.session_state:
     st.session_state.last_query = None
 
 
-# ———— 2. User preference parsing (budget + keywords) —————
-def parse_user_query(query: str) -> dict:
+# —— 2) Parse user query into structured preferences —— 
+def parse_user_query(query: str, inventory: pd.DataFrame) -> dict:
     """
-    Parse user input into:
-      - prefs['budget_min'] and prefs['budget_max']: for range queries like "110 to 120"
-      - prefs['budget']: numeric budget (for single bound queries)
-      - prefs['budget_type']: "max" or "min", corresponding to <= budget or >= budget
-      - prefs['keywords']: keyword list (example)
+    Parse the user's free-text query into:
+      - budget (single bound) or budget_min & budget_max (range)
+      - category   (matched dynamically from inventory["category"])
+      - color      (matched dynamically from inventory["color"])
+      - keywords   (from a predefined list)
     """
-    prefs = {"budget": None, "budget_type": "max", "budget_min": None, "budget_max": None, "keywords": []}
+    prefs = {
+        "budget": None,
+        "budget_type": "max",
+        "budget_min": None,
+        "budget_max": None,
+        "category": None,
+        "color": None,
+        "keywords": []
+    }
 
-    # 1) First check for range patterns like "110 to 120" or "110-120"
-    range_match = re.search(r"\$?(\d{1,7})\s*(?:to|-|~)\s*\$?(\d{1,7})", query, re.IGNORECASE)
+    lower_q = query.lower()
+
+    # 1) Check for a numeric range "110 to 120" or "110-120"
+    range_match = re.search(r"\$?(\d{1,7})\s*(?:to|-|~)\s*\$?(\d{1,7})", lower_q)
     if range_match:
-        # Found a range pattern
-        min_price = int(range_match.group(1))
-        max_price = int(range_match.group(2))
-        # Ensure min <= max
-        if min_price <= max_price:
-            prefs["budget_min"] = min_price
-            prefs["budget_max"] = max_price
+        a = int(range_match.group(1))
+        b = int(range_match.group(2))
+        if a <= b:
+            prefs["budget_min"], prefs["budget_max"] = a, b
         else:
-            # Swap if user entered them backwards
-            prefs["budget_min"] = max_price
-            prefs["budget_max"] = min_price
-        # Don't set single budget for range queries
-        return prefs
+            prefs["budget_min"], prefs["budget_max"] = b, a
+        return prefs  # no single budget needed
 
-    # 2) If no range found, look for single budget number (existing logic)
-    m = re.search(r"\$?(\d{1,7})", query)
+    # 2) Single bound budget, e.g. ">$100" or "under 200"
+    m = re.search(r"\$?(\d{1,7})", lower_q)
     if m:
         prefs["budget"] = int(m.group(1))
-
-    # 3) Determine semantic meaning "above/over/greater" vs "below/under/less"
-    lower_q = query.lower()
     if re.search(r"\b(above|over|greater|>=)\b", lower_q):
-        prefs["budget_type"] = "min"  # means price >= budget
+        prefs["budget_type"] = "min"
     elif re.search(r"\b(below|under|less|<=)\b", lower_q):
-        prefs["budget_type"] = "max"  # means price <= budget
-    # If neither matches, default to "max" (<= budget)
+        prefs["budget_type"] = "max"
 
-    # 4) Simple keyword extraction example (can be extended)
-    for kw in ["red", "blue", "green", "dress", "shoe", "tech", "bag"]:
+    # 3) Dynamic category matching from inventory["category"] (case-insensitive)
+    unique_cats = inventory["category"].dropna().astype(str).unique().tolist()
+    for cat in unique_cats:
+        if cat.lower() in lower_q:
+            prefs["category"] = cat
+            break
+
+    # 4) Dynamic color matching from inventory["color"]
+    if "color" in inventory.columns:
+        unique_colors = inventory["color"].dropna().astype(str).unique().tolist()
+        for col in unique_colors:
+            if col.lower() in lower_q:
+                prefs["color"] = col
+                break
+
+    # 5) Predefined keyword list
+    predefined_kw = [
+        "red", "blue", "green", "dress", "shoe", "tech", "bag",
+        "phone", "jeans", "sneakers", "headphones", "watch", "keyboard",
+        "charger", "camera", "laptop", "fitbit", "wireless", "gaming", "smart", "budget"
+    ]
+    for kw in predefined_kw:
         if kw in lower_q:
             prefs["keywords"].append(kw)
 
     return prefs
 
 
-# ———— 3. Rule filtering: budget + keywords (updated for range support) —————
+# —— 3) Rule-based filtering (multi-step) —— 
 def rule_based_recommend(inv: pd.DataFrame, prefs: dict, top_k: int = 5) -> pd.DataFrame:
     """
-    Filter based on budget range or single budget bound in prefs:
-      - If budget_min and budget_max are set: budget_min <= price <= budget_max
-      - Otherwise: budget_type == "max": price <= budget, budget_type == "min": price >= budget
-    Then apply keyword filtering.
+    Apply filters in this order:
+      1) Price (range or single bound)
+      2) Category (if specified)
+      3) Color (if specified)
+      4) Keywords (search in name/category/color columns)
+    Return top_k results (head of DataFrame) or empty DataFrame if nothing matches.
     """
     df = inv.copy()
 
-    # Budget filtering - check for range first
-    if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None and "price" in df.columns:
-        # Range filtering
+    # 1) Price filter
+    if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
         df = df[(df["price"] >= prefs["budget_min"]) & (df["price"] <= prefs["budget_max"])]
-    elif prefs.get("budget") is not None and "price" in df.columns:
-        # Single bound filtering (existing logic)
+    elif prefs.get("budget") is not None:
         if prefs["budget_type"] == "max":
             df = df[df["price"] <= prefs["budget"]]
-        else:  # "min"
+        else:
             df = df[df["price"] >= prefs["budget"]]
 
-    # Keyword filtering (search in name/category/color columns)
-    if prefs["keywords"]:
+    # 2) Category filter
+    if prefs.get("category"):
+        df = df[df["category"].str.lower() == prefs["category"].lower()]
+
+    # 3) Color filter
+    if prefs.get("color") and "color" in df.columns:
+        df = df[df["color"].str.lower() == prefs["color"].lower()]
+
+    # 4) Keyword filter
+    if prefs["keywords"] and not df.empty:
         pattern = "|".join(prefs["keywords"])
         cols = [c for c in df.columns if c in ("name", "category", "color")]
         if cols:
@@ -384,248 +379,341 @@ def rule_based_recommend(inv: pd.DataFrame, prefs: dict, top_k: int = 5) -> pd.D
                 .any(axis=1)
             ]
 
-    return df.head(top_k)  # Only take top_k rows
+    return df.head(top_k)
 
 
-# ———— 4. Helper function to apply price range filter —————
+# —— 4) Apply price-only filter (for TF-IDF & LLM fallback) —— 
 def apply_price_filter(inv: pd.DataFrame, prefs: dict) -> pd.DataFrame:
-    """
-    Apply price range filtering to inventory DataFrame
-    """
     df = inv.copy()
-
-    if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None and "price" in df.columns:
-        # Range filtering
+    if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
         df = df[(df["price"] >= prefs["budget_min"]) & (df["price"] <= prefs["budget_max"])]
-    elif prefs.get("budget") is not None and "price" in df.columns:
-        # Single bound filtering
+    elif prefs.get("budget") is not None:
         if prefs["budget_type"] == "max":
             df = df[df["price"] <= prefs["budget"]]
-        else:  # "min"
+        else:
             df = df[df["price"] >= prefs["budget"]]
-
     return df
 
 
-# ———— 5. LLM fallback with price range filtering —————
+# —— 5) LLM fallback logic —— 
 def llm_recommend(inv: pd.DataFrame, query: str, prefs: dict) -> str:
     """
-    Convert filtered inventory to JSON and send to LLM for recommendations
+    1) Price filter
+    2) Category filter
+    3) Color filter
+    4) Keyword filter
+    5) If still non-empty, send top-20 JSON to OpenRouter chat.completions
+    6) Return the assistant's reply or an error message
     """
     if not OPENAI_KEY_AVAILABLE or openai_client is None:
-        return "*OpenAI service unavailable, please check configuration or use other recommendation modes*"
+        return "*OpenAI service unavailable. Please check your configuration.*"
 
-    # Apply price range filter first
-    filtered_inv = apply_price_filter(inv, prefs)
+    # 1) Price
+    filtered = apply_price_filter(inv, prefs)
 
-    if filtered_inv.empty:
+    # 2) Category
+    if prefs.get("category"):
+        filtered = filtered[filtered["category"].str.lower() == prefs["category"].lower()]
+
+    # 3) Color
+    if prefs.get("color") and "color" in filtered.columns:
+        filtered = filtered[filtered["color"].str.lower() == prefs["color"].lower()]
+
+    # 4) Keywords
+    if prefs["keywords"] and not filtered.empty:
+        pattern = "|".join(prefs["keywords"])
+        cols = [c for c in filtered.columns if c in ("name", "category", "color")]
+        if cols:
+            filtered = filtered[
+                filtered[cols]
+                .astype(str)
+                .apply(lambda row: row.str.contains(pattern, case=False))
+                .any(axis=1)
+            ]
+
+    # If nothing remains, return a friendly "no results" message
+    if filtered.empty:
         if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
-            return f"*No products found in price range ${prefs['budget_min']} to ${prefs['budget_max']}*"
-        else:
-            return "*No products found matching price criteria*"
+            return f"*No products found in price range ${prefs['budget_min']} to ${prefs['budget_max']}.*"
+        if prefs.get("category"):
+            return f"*No products found in category '{prefs['category']}'.*"
+        if prefs.get("color"):
+            return f"*No products found in color '{prefs['color']}'.*"
+        return "*No products found matching the given criteria.*"
 
-    sample = filtered_inv.head(20).to_dict(orient="records")
+    # Take top‐20 rows for LLM prompt
+    snippet = filtered.head(20).to_dict(orient="records")
 
-    # Enhanced prompt with price range information
     prompt_prefix = f"User query: {query}"
     if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
         prompt_prefix += f"\nPrice range: ${prefs['budget_min']} to ${prefs['budget_max']}"
+    if prefs.get("category"):
+        prompt_prefix += f"\nCategory: {prefs['category']}"
+    if prefs.get("color"):
+        prompt_prefix += f"\nColor: {prefs['color']}"
 
     messages = [
         {
             "role": "system",
-            "content": "You are a friendly and professional AI shopping advisor who generates short recommendations based on JSON inventory and user needs. Only recommend products from the provided inventory."
+            "content": "You are a friendly, professional AI shopping advisor. Only recommend products from the provided inventory JSON."
         },
         {
             "role": "user",
-            "content": f"{prompt_prefix}\n\nInventory JSON: {json.dumps(sample, ensure_ascii=False)}"
+            "content": f"{prompt_prefix}\n\nInventory JSON: {json.dumps(snippet, ensure_ascii=False)}"
         },
     ]
 
     try:
-        # Try different OpenAI API methods
-        if hasattr(openai_client, 'chat') and hasattr(openai_client.chat, 'completions'):  # type: ignore
-            # New OpenAI client
-            response = openai_client.chat.completions.create(  # type: ignore
-                model="gpt-4o-mini",
-                messages=messages,
-                temperature=0.7
-            )
-        else:
-            # Legacy OpenAI
-            response = openai_client.ChatCompletion.create(  # type: ignore
-                model="gpt-4o-mini",
-                messages=messages,
-                temperature=0.7
-            )
-
-        return response.choices[0].message.content.strip()  # type: ignore
+        # Import the requests-based wrapper for reliable OpenRouter calls
+        from openai_wrapper import call_openrouter_chat
+        
+        # Use the custom wrapper instead of the OpenAI client
+        response_text, model_used = call_openrouter_chat(messages, model="gpt-4o-mini", temperature=0.7)
+        return response_text
     except Exception as e:
-        return f"*LLM call failed: {str(e)}*"
+        # Return a clear error message to the user
+        return f"*LLM call failed: {str(e)}. The OpenAI key may be invalid or expired. Please check your configuration.*"
 
 
-# ———— 6. Recommendation execution function —————
+# —— 6) "TF-IDF + GPT" and "Rule-based" execution —— 
 def execute_recommendation(query: str, mode: str, inventory: pd.DataFrame) -> None:
     """
-    Execute recommendation based on the selected mode and display results
+    1) Parse user query into structured prefs
+    2) If Rule-based: run multi-step filtering (price/category/color/keywords)
+       - If empty: show fallback Top-3 from entire inventory
+       - Otherwise: show up to 3 matches with "reason" bullets
+    3) If TF-IDF+GPT: run the same multi-step filtering (price/category/color/keywords) first,
+       then run get_recommendations(...) on whatever remains,
+       then (a) display a small TF-IDF table (name, price, similarity, description) and
+            (b) call generate_recommendation(...) to get a GPT‐written sentence block, catching errors.
+    4) If LLM fallback: call llm_recommend(...) as above.
     """
-    # Parse preferences
-    prefs = parse_user_query(query)
+    prefs = parse_user_query(query, inventory)
 
-    # Execute based on mode
     if mode == "Rule-based":
         filtered = rule_based_recommend(inventory, prefs, top_k=3)
         if not filtered.empty:
             lines = []
             for i, (idx, row) in enumerate(filtered.iterrows(), 1):
-                reason = []
-                # Mark reasons based on budget range or single bound
+                reasons = []
                 if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
-                    # Range query
                     if prefs["budget_min"] <= row["price"] <= prefs["budget_max"]:
-                        reason.append(f"Fits budget ({prefs['budget_min']}–{prefs['budget_max']})")
+                        reasons.append(f"Budget ${prefs['budget_min']}–${prefs['budget_max']}")
                 elif prefs.get("budget") is not None:
-                    # Single bound query
                     if prefs["budget_type"] == "max" and row["price"] <= prefs["budget"]:
-                        reason.append(f"Fits budget (≤{prefs['budget']})")
+                        reasons.append(f"Budget ≤${prefs['budget']}")
                     if prefs["budget_type"] == "min" and row["price"] >= prefs["budget"]:
-                        reason.append(f"Fits budget (≥{prefs['budget']})")
+                        reasons.append(f"Budget ≥${prefs['budget']}")
+                if prefs.get("category"):
+                    reasons.append(f"Category {prefs['category']}")
+                if prefs.get("color"):
+                    reasons.append(f"Color {prefs['color']}")
                 if prefs["keywords"]:
-                    reason.append("Matches keywords")
+                    reasons.append("Matches keyword")
+                if not reasons:
+                    reasons.append("Top pick")
                 lines.append(
                     f"{i}. **{row['name']} – ${row['price']}**  \n"
-                    f"   Reason: {', '.join(reason) or 'Top pick'}"
+                    f"   Reason: {', '.join(reasons)}"
                 )
-
             st.markdown('<div class="result-card">', unsafe_allow_html=True)
             st.markdown('<div class="result-header">🔍 Rule-based Top picks</div>', unsafe_allow_html=True)
-            reply_md = "\n\n".join(lines)
-            st.markdown(reply_md)
+            st.markdown("\n\n".join(lines))
             st.markdown('</div>', unsafe_allow_html=True)
+            return
         else:
-            st.error("No products found matching the rules, please try changing budget or keywords.")
-
-    elif mode == "TF-IDF + GPT":
-        # Pre-filter inventory by price range before TF-IDF
-        filtered_inventory = apply_price_filter(inventory, prefs)
-
-        if filtered_inventory.empty:
-            if prefs.get("budget_min") is not None and prefs.get("budget_max") is not None:
-                st.warning(f"⚠️ No products found in price range ${prefs['budget_min']} to ${prefs['budget_max']}. Try adjusting your budget range.")
-            else:
-                st.warning("⚠️ No products found matching price criteria.")
+            st.warning("⚠️ No products found matching criteria. Showing fallback Top 3.")
+            fallback = inventory.head(3)
+            lines = []
+            for i, (idx, row) in enumerate(fallback.iterrows(), 1):
+                lines.append(f"{i}. **{row['name']} – ${row['price']}**  \n   Reason: Top pick (fallback)")
+            st.markdown('<div class="result-card">', unsafe_allow_html=True)
+            st.markdown('<div class="result-header">🔍 Fallback Top picks</div>', unsafe_allow_html=True)
+            st.markdown("\n\n".join(lines))
+            st.markdown('</div>', unsafe_allow_html=True)
             return
 
-        # Now run TF-IDF on the filtered inventory
-        tfidf_df = get_recommendations(query, filtered_inventory, k=3)
+    elif mode == "TF-IDF + GPT":
+        # (A) Apply the same multi-step filter as rule-based:
+        temp = apply_price_filter(inventory, prefs)
+        if prefs.get("category"):
+            temp = temp[temp["category"].str.lower() == prefs["category"].lower()]
+        if prefs.get("color") and "color" in temp.columns:
+            temp = temp[temp["color"].str.lower() == prefs["color"].lower()]
+        if prefs["keywords"] and not temp.empty:
+            pattern = "|".join(prefs["keywords"])
+            cols = [c for c in temp.columns if c in ("name", "category", "color")]
+            if cols:
+                temp = temp[
+                    temp[cols]
+                    .astype(str)
+                    .apply(lambda row: row.str.contains(pattern, case=False))
+                    .any(axis=1)
+                ]
 
-        if not tfidf_df.empty:
-            top_k_list = tfidf_df[["name", "price"]].to_dict(orient="records")
-            gpt_reply, model_used = generate_recommendation(query, top_k_list)
+        if temp.empty:
+            st.warning("⚠️ No products found after filters. Showing fallback Top 3.")
+            fallback = inventory.head(3)
+            lines = []
+            for i, (idx, row) in enumerate(fallback.iterrows(), 1):
+                lines.append(f"{i}. **{row['name']} – ${row['price']}**  \n   Reason: Top pick (fallback)")
+            st.markdown('<div class="result-card">', unsafe_allow_html=True)
+            st.markdown('<div class="result-header">🔍 Fallback Top picks</div>', unsafe_allow_html=True)
+            st.markdown("\n\n".join(lines))
+            st.markdown('</div>', unsafe_allow_html=True)
+            return
 
-            # Use column layout to display TF-IDF results and GPT recommendations separately
-            col1, col2 = st.columns([1, 1])
+        # (B) Use TF-IDF on what's left
+        try:
+            tfidf_df = get_recommendations(query, temp, k=3)
+            st.info(f"🔍 TF-IDF found {len(tfidf_df) if tfidf_df is not None else 0} matches for '{query}'")
+            
+            if tfidf_df is not None and not tfidf_df.empty:
+                # Check if required columns exist
+                required_cols = ["name", "price", "similarity"]
+                if not all(col in tfidf_df.columns for col in required_cols):
+                    st.error(f"Missing columns in TF-IDF results. Expected: {required_cols}, Got: {list(tfidf_df.columns)}")
+                    return
+                    
+                top_k_list = tfidf_df[["name", "price"]].to_dict(orient="records")
+                
+                # Try to get GPT recommendation
+                try:
+                    gpt_reply, model_used = generate_recommendation(query, top_k_list)
+                except Exception as gpt_error:
+                    st.error(f"GPT recommendation failed: {str(gpt_error)}")
+                    gpt_reply = "*GPT recommendation unavailable. Please check your OpenAI configuration.*"
+                    model_used = "error"
 
-            with col1:
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="result-header">🔢 TF-IDF Top 3 Matches</div>', unsafe_allow_html=True)
+                    
+                    # Display available columns safely
+                    display_cols = [col for col in ["name", "price", "similarity", "description"] if col in tfidf_df.columns]
+                    st.dataframe(
+                        tfidf_df[display_cols],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                with col2:
+                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                    if model_used == "gpt-3.5-turbo":
+                        st.markdown('<div class="result-header">🤖 GPT Smart Recommendation ⚠️ Using GPT-3.5</div>', unsafe_allow_html=True)
+                        st.markdown('💡 [Check usage ↗️](https://platform.openai.com/account/usage)', unsafe_allow_html=True)
+                        st.info("Note: fell back to GPT-3.5 due to quota or rate limits.")
+                    elif model_used == "demo-gpt":
+                        st.markdown('<div class="result-header">🎯 GPT Smart Recommendation (Demo Mode)</div>', unsafe_allow_html=True)
+                        st.info("Demo mode: OpenAI API key is invalid/expired. Please update your API key for live recommendations.")
+                    elif model_used == "error":
+                        st.markdown('<div class="result-header">🤖 GPT Smart Recommendation ❌ Error</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="result-header">🤖 GPT Smart Recommendation</div>', unsafe_allow_html=True)
+                    st.markdown(gpt_reply)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                return
+            else:
+                st.warning(f"⚠️ TF-IDF did not find any matches for '{query}'. This can happen if your query doesn't semantically match product names/descriptions. Showing fallback Top 3.")
+                fallback = inventory.head(3)
+                lines = []
+                for i, (idx, row) in enumerate(fallback.iterrows(), 1):
+                    lines.append(f"{i}. **{row['name']} – ${row['price']}**  \n   Reason: Top pick (fallback)")
                 st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                st.markdown('<div class="result-header">🔢 TF-IDF Top 3 Matches</div>', unsafe_allow_html=True)
-                st.dataframe(
-                    tfidf_df[["name", "price", "similarity", "description"]],
-                    use_container_width=True,
-                    hide_index=True
-                )
+                st.markdown('<div class="result-header">🔍 Fallback Top picks</div>', unsafe_allow_html=True)
+                st.markdown("\n\n".join(lines))
                 st.markdown('</div>', unsafe_allow_html=True)
-
-            with col2:
-                st.markdown('<div class="result-card">', unsafe_allow_html=True)
-
-                # Create header with fallback warning if needed
-                if model_used == "gpt-3.5-turbo":
-                    st.markdown('<div class="result-header">🤖 GPT Smart Recommendation ⚠️ Using GPT-3.5 due to quota limits</div>', unsafe_allow_html=True)
-                    st.markdown('💡 [Check your usage ↗️](https://platform.openai.com/account/usage)', unsafe_allow_html=True)
-                    st.info("Note: Automatically fell back to GPT-3.5 due to quota or rate limits on GPT-4o-mini.")
-                elif model_used == "error":
-                    st.markdown('<div class="result-header">🤖 GPT Smart Recommendation ❌ Error</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div class="result-header">🤖 GPT Smart Recommendation</div>', unsafe_allow_html=True)
-
-                st.markdown(gpt_reply)
-                st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ No TF-IDF matches found. The query didn't match any products with sufficient similarity. Try different keywords or check your spelling.")
+                return
+        except Exception as tfidf_error:
+            st.error(f"TF-IDF engine error: {str(tfidf_error)}")
+            st.warning("⚠️ TF-IDF failed. Showing fallback Top 3.")
+            fallback = inventory.head(3)
+            lines = []
+            for i, (idx, row) in enumerate(fallback.iterrows(), 1):
+                lines.append(f"{i}. **{row['name']} – ${row['price']}**  \n   Reason: Top pick (fallback)")
+            st.markdown('<div class="result-card">', unsafe_allow_html=True)
+            st.markdown('<div class="result-header">🔍 Fallback Top picks</div>', unsafe_allow_html=True)
+            st.markdown("\n\n".join(lines))
+            st.markdown('</div>', unsafe_allow_html=True)
+            return
 
     else:  # LLM fallback
         if OPENAI_KEY_AVAILABLE:
-            reply_md = llm_recommend(inventory, query, prefs)
-            st.markdown('<div class="result-card">', unsafe_allow_html=True)
-            st.markdown('<div class="result-header">🧠 LLM Universal Recommendation</div>', unsafe_allow_html=True)
-            st.markdown(reply_md)
-            st.markdown('</div>', unsafe_allow_html=True)
+            try:
+                st.info(f"🧠 Calling LLM for universal recommendation...")
+                reply_md = llm_recommend(inventory, query, prefs)
+                st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                st.markdown('<div class="result-header">🧠 LLM Universal Recommendation</div>', unsafe_allow_html=True)
+                st.markdown(reply_md)
+                st.markdown('</div>', unsafe_allow_html=True)
+                return
+            except Exception as llm_error:
+                st.error(f"LLM recommendation failed: {str(llm_error)}")
+                st.warning("⚠️ LLM fallback failed. Showing basic Top 3.")
+                fallback = inventory.head(3)
+                lines = []
+                for i, (idx, row) in enumerate(fallback.iterrows(), 1):
+                    lines.append(f"{i}. **{row['name']} – ${row['price']}**  \n   Reason: Top pick (fallback)")
+                st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                st.markdown('<div class="result-header">🔍 Fallback Top picks</div>', unsafe_allow_html=True)
+                st.markdown("\n\n".join(lines))
+                st.markdown('</div>', unsafe_allow_html=True)
+                return
         else:
-            st.error("⚠️ OpenAI Key unavailable, cannot call large language model.")
+            st.error("⚠️ OpenAI Key unavailable. Cannot call large language model.")
+            return
 
-# ———— 7. Main conversation logic & interface —————
+
+# —— 7) Main chat interface & logic —— 
 st.markdown('<h2 class="chat-header">💬 Let\'s Chat!</h2>', unsafe_allow_html=True)
 
-# 7.1: User input box
-user_msg = st.chat_input("Tell me what you need (e.g. color, budget, category or any natural language)", key="chat_input")
+user_msg = st.chat_input("Tell me what you need (e.g. color, budget, category, or any natural language)", key="chat_input")
 
-# 7.2: Handle new user input
 if user_msg:
-    # Store the new query
     st.session_state.last_query = user_msg
     st.session_state.chat.append(("user", user_msg))
     st.chat_message("user").write(user_msg)
 
-# 7.3: Display last query and mode selection (always show if there's a last query)
 if st.session_state.last_query:
-    # Display the last query
+    # Show the last query
     st.markdown('<div class="last-query-container">', unsafe_allow_html=True)
     st.markdown('<p class="last-query-text">🔄 Current Query:</p>', unsafe_allow_html=True)
     st.markdown(f'<div class="query-content">{st.session_state.last_query}</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Mode selection container
+
+    # Mode selection + Rerun button
     st.markdown('<div class="mode-container">', unsafe_allow_html=True)
     st.markdown('<h3 class="mode-title">Please select recommendation mode</h3>', unsafe_allow_html=True)
-    
-    # Create columns for mode selection and rerun button
     mode_col, button_col = st.columns([3, 1])
-    
     with mode_col:
         mode = st.radio(
             "Mode",
             options=["Rule-based", "TF-IDF + GPT", "LLM fallback"],
-            index=0,  # Default to Rule-based
+            index=0,
             horizontal=True,
             key="mode_selection"
         )
-    
     with button_col:
         rerun_clicked = st.button("🔄 Rerun", key="rerun_btn", use_container_width=True)
-    
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 7.4: Execute recommendation (either from new input or rerun button)
+
+    # If either new message or rerun is clicked, run the recommendation
     if user_msg or rerun_clicked:
         query_to_process = st.session_state.last_query
-        
-        # Add to chat if it's a rerun (new queries already added above)
         if rerun_clicked and not user_msg:
             st.session_state.chat.append(("user", f"🔄 Rerun: {query_to_process}"))
             st.chat_message("user").write(f"🔄 **Rerun:** {query_to_process}")
-        
-        # Execute the recommendation
+
         execute_recommendation(query_to_process, mode, st.session_state.inventory)
-        
-        # Add to session state
         st.session_state.chat.append(("assistant", f"Recommendation generated using {mode} mode"))
 
-# Display chat history
+# Show chat history (last 6 messages)
 if st.session_state.chat:
     st.markdown('<div class="divider"><span class="divider-text">Conversation History</span></div>', unsafe_allow_html=True)
     st.markdown("### 💭 Recent Interactions")
-    for role, content in st.session_state.chat[-6:]:  # Show last 6 messages
+    for role, content in st.session_state.chat[-6:]:
         if role == "user":
             st.chat_message("user").write(f"**User:** {content}")
         else:
