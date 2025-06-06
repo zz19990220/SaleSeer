@@ -197,6 +197,34 @@ st.markdown("""
         margin-top: 0.5rem;
         font-style: italic;
     }
+    /* Current query bar with rerun button */
+    .current-query-bar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1rem 1.5rem;
+        border-radius: 1rem;
+        margin: 1rem 0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .current-query-text {
+        color: white !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        margin: 0 !important;
+        flex-grow: 1;
+    }
+    .current-query-content {
+        color: white !important;
+        font-size: 1.1rem !important;
+        font-weight: 500 !important;
+        margin-left: 0.5rem;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.3rem 0.8rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -748,26 +776,25 @@ if user_msg:
     st.chat_message("user").write(user_msg)
 
 if st.session_state.last_query:
-    # Show the last query
-    st.markdown('<div class="last-query-container">', unsafe_allow_html=True)
-    st.markdown('<p class="last-query-text">🔄 Current Query:</p>', unsafe_allow_html=True)
-    st.markdown(f'<div class="query-content">{st.session_state.last_query}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Mode selection + Rerun button
-    st.markdown('<div class="mode-container">', unsafe_allow_html=True)
-    st.markdown('<h3 class="mode-title">Please select recommendation mode</h3>', unsafe_allow_html=True)
-    mode_col, button_col = st.columns([3, 1])
-    with mode_col:
-        mode = st.radio(
-            "Mode",
-            options=["Rule-based", "TF-IDF + GPT", "LLM fallback"],
-            index=0,
-            horizontal=True,
-            key="mode_selection"
-        )
+    # Current Query Bar with Rerun Button
+    st.markdown('<div class="current-query-bar">', unsafe_allow_html=True)
+    query_col, button_col = st.columns([4, 1])
+    with query_col:
+        st.markdown(f'<p class="current-query-text">🔄 Current Query: <span class="current-query-content">{st.session_state.last_query}</span></p>', unsafe_allow_html=True)
     with button_col:
         rerun_clicked = st.button("🔄 Rerun", key="rerun_btn", use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Mode selection (separate container)
+    st.markdown('<div class="mode-container">', unsafe_allow_html=True)
+    st.markdown('<h3 class="mode-title">Please select recommendation mode</h3>', unsafe_allow_html=True)
+    mode = st.radio(
+        "Mode",
+        options=["Rule-based", "TF-IDF + GPT", "LLM fallback"],
+        index=0,
+        horizontal=True,
+        key="mode_selection"
+    )
     st.markdown('</div>', unsafe_allow_html=True)
 
     # If either new message or rerun is clicked, run the recommendation
